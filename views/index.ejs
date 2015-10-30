@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html ng-app="app">
+
+<head>
+    <title>
+        <%= title %>
+
+    </title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+</head>
+
+<body>
+    <h1><%= title %></h1>
+    <ng-view></ng-view>
+    <!-- Libraries -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-resource.min.js"></script>
+    <!-- Template -->
+    <script type="text/ng-template" id="/rescues.html">
+        Search:
+        <input type="text" ng-model="search.name">
+        <ul>
+            <li ng-repeat="rescue in rescues | filter: search">
+                <input type="checkbox" ng-model="rescue.completed" ng-change="update($index)">
+                <a ng-show="!editing[$index]" href="#/{{rescue._id}}">{{rescue.name}}</a>
+                <img ng-src="{{rescue.img}}" alt="Photo of {{rescue.name}}">
+                <button ng-show="!editing[$index]" ng-click="edit($index)">edit</button>
+                <button ng-show="!editing[$index]" ng-click="remove($index)">remove</button>
+                <input ng-show="editing[$index]" type="text" ng-model="rescue.name">
+                
+                <button ng-show="editing[$index]" ng-click="update($index)">update</button>
+                <button ng-show="editing[$index]" ng-click="cancel($index)">cancel</button>
+            </li>
+        </ul>
+        New task
+        <input type="text" ng-model="newRescue" placeholder="enter name">
+         <input type="text" ng-model="newRescuebreed" placeholder="enter breed">
+          <input type="text" ng-model="newRescueimg" placeholder="enter image">
+           <input type="text" ng-model="newRescueage" placeholder="enter age category">
+        <button ng-click="save()">Create</button>
+    </script>
+    <script type="text/ng-template" id="/rescueDetails.html">
+    	<img ng-src="{{rescue.img}}" alt="Photo of {{rescue.name}}">
+        <h1>{{ rescue.name }}</h1> completed:
+        <input type="checkbox" ng-model="rescue.completed">
+        <br> note:
+        <textarea ng-model="rescue.note"></textarea>
+        <br>
+        <br>
+        <button ng-click="update()">update</button>
+        <button ng-click="remove()">remove</button>
+        <a href="/">Cancel</a>
+    </script>
+    <script>
+    angular.module('app', ['ngRoute', 'ngResource'])
+
+    //---------------
+    // Services
+    //---------------
+
+    .factory('Rescues', ['$resource', function($resource) {
+        return $resource('/rescues/:id', null, {
+            'update': {
+                method: 'PUT'
+            }
+        });
+    }])
+
+    //---------------
+    // Controllers
+    //---------------
+
+    .controller('RescueController', ['$scope', 'Rescues', function($scope, Rescues) {
+        $scope.editing = [];
+        $scope.rescues = Rescues.query();
+
+        $scope.save = function() {
+            if (!$scope.newRescue || $scope.newRescue.length < 1) return;
+            var rescue = new Rescues({
+                name: $scope.newRescue,
+                breed: $scope.newRescuebreed,
+                img: $scope.newRescueimg,
+                age: $scope.newRescueage,
+                completed: false
+            });
+
+            rescue.$save(function() {
+                $scope.rescues.push(rescue);
+                $scope.newRescue = ''; // clear textbox
+            });
+        }
+
+        $scope.update = function(index) {
+            var rescue = $scope.rescues[index];
+            Rescues.update({
+                id: rescue._id
+            }, rescue);
+            $scope.editing[index] = false;
+            
+        }
+
+        $scope.edit = function(index) {
+            $scope.editing[index] = angular.copy($scope.rescues[index]);
+        }
+
+        $scope.cancel = function(index) {
+            $scope.rescues[index] = angular.copy($scope.editing[index]);
+            $scope.editing[index] = false;
+        }
+
+        $scope.remove = function(index) {
+            var rescue = $scope.rescues[index];
+            Rescues.remove({
+                id: rescue._id
+            }, function() {
+                $scope.rescues.splice(index, 1);
+            });
+        }
+    }])
+
+    .controller('RescueDetailCtrl', ['$scope', '$routeParams', 'Rescues', '$location', function($scope, $routeParams, Rescues, $location) {
+        $scope.rescue = Rescues.get({
+            id: $routeParams.id
+        });
+
+        $scope.update = function() {
+            Rescues.update({
+                id: $scope.rescue._id
+            }, $scope.rescue, function() {
+                $location.url('/');
+            });
+        }
+
+        $scope.remove = function() {
+            Rescues.remove({
+                id: $scope.rescue._id
+            }, function() {
+                $location.url('/');
+            });
+        }
+    }])
+
+    //---------------
+    // Routes
+    //---------------
+
+    .config(['$routeProvider', function($routeProvider) {
+        $routeProvider
+            .when('/', {
+                templateUrl: '/rescues.html',
+                controller: 'RescueController'
+            })
+
+        .when('/:id', {
+            templateUrl: '/rescueDetails.html',
+            controller: 'RescueDetailCtrl'
+        });
+    }]);
+    </script>
+</body>
+
+</html>
